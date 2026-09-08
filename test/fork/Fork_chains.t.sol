@@ -15,6 +15,8 @@ import {UniV3ForkSuite} from "./UniV3ForkSuite.sol";
  */
 contract Fork_eth is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x514910771AF9Ca656af840dff83E8264EcF986CA);
+        thirdTokens.push(0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (500, 100, 3000);
         _initUniV3(
@@ -34,6 +36,8 @@ contract Fork_eth is UniV3ForkSuite {
 
 contract Fork_pol is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x53E0bca35eC356BD5ddDFebbD1Fc0fD03FaBad39);
+        thirdTokens.push(0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (500, 3000, 100);
         _initUniV3(
@@ -53,6 +57,8 @@ contract Fork_pol is UniV3ForkSuite {
 
 contract Fork_op is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x4200000000000000000000000000000000000042);
+        thirdTokens.push(0x350a791Bfc2C21F9Ed5d10980Dad2e2638ffa7f6);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (500, 3000, 100);
         _initUniV3(
@@ -72,6 +78,8 @@ contract Fork_op is UniV3ForkSuite {
 
 contract Fork_arb is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x912CE59144191C1204E64559FE8253a0e49E6548);
+        thirdTokens.push(0xf97f4df75117a78c1A5a0DBb814Af92458539FB4);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (500, 3000, 100);
         _initUniV3(
@@ -91,6 +99,8 @@ contract Fork_arb is UniV3ForkSuite {
 
 contract Fork_base is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x532f27101965dd16442E59d40670FaF5eBB142E4);
+        thirdTokens.push(0x940181a94A35A4569E4529A3CDfB74e38FD98631);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (3000, 500, 100);
         _initUniV3(
@@ -112,6 +122,8 @@ contract Fork_base is UniV3ForkSuite {
 /// cofre é idêntico, o que muda é só quem assina.
 contract Fork_avax is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x152b9d0FdC40C096757F570A51E494bd4b943E50);
+        thirdTokens.push(0x5947BB275c521040051D82396192181b413227A3);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (3000, 500, 100);
         _initUniV3(
@@ -132,6 +144,8 @@ contract Fork_avax is UniV3ForkSuite {
 /// Uniswap v3 na BSC (deploy próprio; o Pancake tem bateria separada em Fork_bsc).
 contract Fork_bsc_uni is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82);
+        thirdTokens.push(0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (500, 100, 3000);
         _initUniV3(
@@ -152,6 +166,7 @@ contract Fork_bsc_uni is UniV3ForkSuite {
 /// Robinhood Chain: reserva = USDG (não há USDT líquido), Uniswap v3 próprio.
 contract Fork_robinhood is UniV3ForkSuite {
     function setUp() public {
+        thirdTokens.push(0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (100, 500, 3000);
         _initUniV3(

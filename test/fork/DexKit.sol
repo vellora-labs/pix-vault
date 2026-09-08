@@ -106,6 +106,51 @@ library DexKit {
         return VelloraPixVault.Call(router, data);
     }
 
+    /// FoT: o router mede o saldo do destinatário, então `minOut` é o LÍQUIDO recebido.
+    function v2SwapSupportingFeeOnTransfer(
+        address router,
+        uint256 amountIn,
+        uint256 minOut,
+        address[] memory path,
+        address to
+    ) internal view returns (VelloraPixVault.Call memory) {
+        bytes memory data = abi.encodeWithSelector(
+            bytes4(
+                keccak256(
+                    "swapExactTokensForTokensSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)"
+                )
+            ),
+            amountIn,
+            minOut,
+            path,
+            to,
+            block.timestamp + 600
+        );
+        return VelloraPixVault.Call(router, data);
+    }
+
+    function v2SwapSupportingFeeOnTransferForETH(
+        address router,
+        uint256 amountIn,
+        uint256 minOut,
+        address[] memory path,
+        address to
+    ) internal view returns (VelloraPixVault.Call memory) {
+        bytes memory data = abi.encodeWithSelector(
+            bytes4(
+                keccak256(
+                    "swapExactTokensForETHSupportingFeeOnTransferTokens(uint256,uint256,address[],address,uint256)"
+                )
+            ),
+            amountIn,
+            minOut,
+            path,
+            to,
+            block.timestamp + 600
+        );
+        return VelloraPixVault.Call(router, data);
+    }
+
     function v2SwapExactTokensForETH(address router, uint256 amountIn, uint256 minOut, address[] memory path, address to)
         internal
         view
@@ -159,6 +204,43 @@ library DexKit {
         return VelloraPixVault.Call(ur, _urExecute(commands, inputs));
     }
 
+    /**
+     * Universal Router **2.1.1** (Robinhood Chain): o V3_SWAP_EXACT_IN ganhou um
+     * argumento por hop, `minHopPriceX36` — piso de preço de cada salto, em X36.
+     * Passar zeros desliga o bound (mesmo comportamento do 2.0) e NÃO afeta a
+     * entrega: o `amountOutMinimum` continua sendo o guard do valor final, e o
+     * cofre mede a entrega no destinatário de qualquer jeito.
+     * `hops` = número de pools no path (2 endereços = 1 hop).
+     */
+    function urV3ExactIn211(
+        address ur,
+        bytes memory path,
+        uint256 amountIn,
+        uint256 minOut,
+        address recipient,
+        uint256 hops
+    ) internal view returns (VelloraPixVault.Call memory) {
+        bytes memory commands = abi.encodePacked(UR_V3_SWAP_EXACT_IN);
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(recipient, amountIn, minOut, path, true, new uint256[](hops));
+        return VelloraPixVault.Call(ur, _urExecute(commands, inputs));
+    }
+
+    function urV3ExactIn211NativeOut(
+        address ur,
+        bytes memory path,
+        uint256 amountIn,
+        uint256 minOut,
+        address recipient,
+        uint256 hops
+    ) internal view returns (VelloraPixVault.Call memory) {
+        bytes memory commands = abi.encodePacked(UR_V3_SWAP_EXACT_IN, UR_UNWRAP_WETH);
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(ADDRESS_THIS, amountIn, minOut, path, true, new uint256[](hops));
+        inputs[1] = abi.encode(recipient, minOut);
+        return VelloraPixVault.Call(ur, _urExecute(commands, inputs));
+    }
+
     /// Variante com inputs já codificados (ex.: layout 2.1.1 com minHopPriceX36).
     function urExecuteRaw(address ur, bytes memory commands, bytes[] memory inputs)
         internal
@@ -188,6 +270,14 @@ library DexKit {
         p = new address[](2);
         p[0] = a;
         p[1] = b;
+    }
+
+    /// Path canônico: reserva → wrapped nativo → token.
+    function pathOf3(address a, address b, address c) internal pure returns (address[] memory p) {
+        p = new address[](3);
+        p[0] = a;
+        p[1] = b;
+        p[2] = c;
     }
 }
 

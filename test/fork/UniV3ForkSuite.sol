@@ -36,6 +36,8 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
     string internal chainLabel;
     /// Fee tiers a testar, em ordem de preferência.
     uint24[] internal feeTiers;
+    /// Candidatos de token de terceiro para o path canônico reserva → wrapped → token.
+    address[] internal thirdTokens;
 
     function _initUniV3(
         string memory label,
@@ -111,6 +113,59 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
             one(DexKit.srExactInputSingleNativeOut(swapRouter02, reserve, wnative, fee, user, amountIn, minOut))
         );
         assertEq(user.balance - before, delivered, "nativo chegou ao usuario");
+    }
+
+    /**
+     * `amountIn` sempre em USDT e, quando
+     * necessário, path **reserva → wrapped nativo → token** — nunca um par
+     * direto USDT/token que pode não existir ou ter liquidez pior.
+     * Escolhe o primeiro token candidato com pool wrapped/token e quote > 0.
+     */
+    function test_uniV3_reserve_via_wrapped_to_token() public {
+        if (thirdTokens.length == 0) {
+            emit log_string("sem token de terceiro configurado nesta rede - pulado");
+            return;
+        }
+        uint256 amountIn = units(100);
+        (uint24 feeIn,) = _bestFee(amountIn);
+        for (uint256 t = 0; t < thirdTokens.length; t++) {
+            address tokenOut = thirdTokens[t];
+            for (uint256 i = 0; i < feeTiers.length; i++) {
+                address pool = IUniV3Factory(factory).getPool(wnative, tokenOut, feeTiers[i]);
+                if (pool == address(0) || IUniV3Pool(pool).liquidity() == 0) continue;
+                bytes memory path = DexKit.v3Path2(reserve, feeIn, wnative, feeTiers[i], tokenOut);
+                uint256 q;
+                try this._quotePath(quoterV2, path, amountIn) returns (uint256 out) {
+                    q = out;
+                } catch {
+                    continue;
+                }
+                if (q == 0) continue;
+                uint256 minOut = withSlippage(q);
+                (uint256 delivered,) = buy(
+                    string.concat(
+                        chainLabel,
+                        " uni-v3 reserva->wNative->token fee",
+                        vm.toString(uint256(feeIn)),
+                        "/",
+                        vm.toString(uint256(feeTiers[i]))
+                    ),
+                    tokenOut,
+                    amountIn,
+                    minOut,
+                    swapRouter02,
+                    one(DexKit.srExactInput(swapRouter02, path, user, amountIn, minOut))
+                );
+                assertEq(IERC20(tokenOut).balanceOf(user), delivered, "token de terceiro foi para o usuario");
+                return;
+            }
+        }
+        revert("nenhum candidato reserva->wrapped->token com pool e quote");
+    }
+
+    function _quotePath(address q, bytes memory path, uint256 amountIn) external returns (uint256 out) {
+        require(msg.sender == address(this), "self");
+        return quoteV3Path(q, path, amountIn);
     }
 
     function test_uniV3_minOut_impossible_reverts_without_spending() public {
