@@ -7,7 +7,12 @@ solc_version = "0.8.36"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
-fs_permissions = [{ access = "read", path = "./config" }]
+# The fork tests pass many parameters per call (DEX calldata + measurement) and only
+# compile with via-IR. Restricting via-IR to test/fork/** lets a plain `forge build`
+# compile everything while the vault keeps its non-via-IR artifact for deployment.
+# The fork tests themselves deploy a via-IR build of the vault (VelloraPixVault.via-ir).
+additional_compiler_profiles = [{ name = "via-ir", via_ir = true }]
+compilation_restrictions = [{ paths = "test/fork/**", via_ir = true }]
 # Fork tests per network: `forge test --match-contract Fork_<key> --fork-url <rpc>`
 # (or run-fork-battery.sh). Each fork test's setUp selects its own fork (RPC from the
 # env vars below or a public default); `forge test --no-match-path 'test/fork/*'`
@@ -23,7 +28,7 @@ base = "${BASE_RPC_URL}"
 avax = "${AVAX_RPC_URL}"
 robinhood = "${ROBINHOOD_RPC_URL}"
 
-# Fork tests: many parameters per call (DEX calldata + measurement) → via-IR.
-# The vault bytecode for deployment still comes from the default profile (no via-IR).
+# Everything via-IR (used by run-fork-battery.sh). The vault bytecode for deployment
+# still comes from the default profile (no via-IR).
 [profile.fork]
 via_ir = true
