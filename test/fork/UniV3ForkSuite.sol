@@ -73,7 +73,7 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
                 if (out > 0) return (feeTiers[i], out);
             } catch {}
         }
-        revert("nenhum pool reserva/wnative com liquidez e quote");
+        revert("no reserve/wnative pool with liquidity and a quote");
     }
 
     function _quote(address q, address tIn, address tOut, uint24 fee, uint256 amountIn)
@@ -89,14 +89,14 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
         (uint24 fee, uint256 q) = _bestFee(amountIn);
         uint256 minOut = withSlippage(q);
         (uint256 delivered,) = buy(
-            string.concat(chainLabel, " uni-v3 reserva->wNative fee", vm.toString(uint256(fee))),
+            string.concat(chainLabel, " uni-v3 reserve->wNative fee", vm.toString(uint256(fee))),
             wnative,
             amountIn,
             minOut,
             swapRouter02,
             one(DexKit.srExactInputSingle(swapRouter02, reserve, wnative, fee, user, amountIn, minOut))
         );
-        assertEq(IERC20(wnative).balanceOf(user), delivered, "wrapped foi para o usuario");
+        assertEq(IERC20(wnative).balanceOf(user), delivered, "wrapped native went to the user");
     }
 
     function test_uniV3_reserve_to_native_unwrap() public {
@@ -105,14 +105,14 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
         uint256 minOut = withSlippage(q);
         uint256 before = user.balance;
         (uint256 delivered,) = buy(
-            string.concat(chainLabel, " uni-v3 reserva->NATIVO (multicall+unwrap)"),
+            string.concat(chainLabel, " uni-v3 reserve->NATIVE (multicall+unwrap)"),
             address(0),
             amountIn,
             minOut,
             swapRouter02,
             one(DexKit.srExactInputSingleNativeOut(swapRouter02, reserve, wnative, fee, user, amountIn, minOut))
         );
-        assertEq(user.balance - before, delivered, "nativo chegou ao usuario");
+        assertEq(user.balance - before, delivered, "native coin reached the user");
     }
 
     /**
@@ -123,7 +123,7 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
      */
     function test_uniV3_reserve_via_wrapped_to_token() public {
         if (thirdTokens.length == 0) {
-            emit log_string("sem token de terceiro configurado nesta rede - pulado");
+            emit log_string("no third-party token configured on this network - skipped");
             return;
         }
         uint256 amountIn = units(100);
@@ -145,7 +145,7 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
                 (uint256 delivered,) = buy(
                     string.concat(
                         chainLabel,
-                        " uni-v3 reserva->wNative->token fee",
+                        " uni-v3 reserve->wNative->token fee",
                         vm.toString(uint256(feeIn)),
                         "/",
                         vm.toString(uint256(feeTiers[i]))
@@ -156,11 +156,11 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
                     swapRouter02,
                     one(DexKit.srExactInput(swapRouter02, path, user, amountIn, minOut))
                 );
-                assertEq(IERC20(tokenOut).balanceOf(user), delivered, "token de terceiro foi para o usuario");
+                assertEq(IERC20(tokenOut).balanceOf(user), delivered, "third-party token went to the user");
                 return;
             }
         }
-        revert("nenhum candidato reserva->wrapped->token com pool e quote");
+        revert("no reserve->wrapped->token candidate with a pool and a quote");
     }
 
     function _quotePath(address q, bytes memory path, uint256 amountIn) external returns (uint256 out) {
@@ -177,8 +177,8 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
         vm.prank(operator);
         vm.expectRevert();
         vault.executeBuy(keccak256("impossible"), user, wnative, amountIn, q * 2, swapRouter02, calls);
-        assertEq(IERC20(reserve).balanceOf(address(vault)), balanceBefore, "reserva intacta");
-        assertEq(IERC20(reserve).allowance(address(vault), swapRouter02), 0, "sem approve residual");
+        assertEq(IERC20(reserve).balanceOf(address(vault)), balanceBefore, "reserve untouched");
+        assertEq(IERC20(reserve).allowance(address(vault), swapRouter02), 0, "no leftover approval");
     }
 
     function test_reserveOut_transfer() public {

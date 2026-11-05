@@ -52,7 +52,7 @@ abstract contract PixVaultForkBase is Test {
             vm.prank(whale);
             IERC20(reserve).transfer(address(vault), amount);
         }
-        require(IERC20(reserve).balanceOf(address(vault)) >= amount, "fork: nao consegui financiar o cofre");
+        require(IERC20(reserve).balanceOf(address(vault)) >= amount, "fork: could not fund the vault");
     }
 
     function _dealTo(address token, address to, uint256 amount) external {
@@ -79,9 +79,9 @@ abstract contract PixVaultForkBase is Test {
         (delivered, spent) = vault.executeBuy(orderId, user, tokenOut, amountIn, minOut, spender, calls);
         uint256 gasUsed = g0 - gasleft();
         console2.log(string.concat("[", label, "] spent=", vm.toString(spent), " delivered=", vm.toString(delivered), " minOut=", vm.toString(minOut), " gas=", vm.toString(gasUsed)));
-        assertGe(delivered, minOut, "entrega abaixo do minOut");
-        assertLe(spent, amountIn, "gastou mais que amountIn");
-        assertEq(IERC20(reserve).allowance(address(vault), spender), 0, "approve nao zerado");
+        assertGe(delivered, minOut, "delivery below minOut");
+        assertLe(spent, amountIn, "spent more than amountIn");
+        assertEq(IERC20(reserve).allowance(address(vault), spender), 0, "approval not reset");
     }
 
     function one(VelloraPixVault.Call memory c) internal pure returns (VelloraPixVault.Call[] memory calls) {

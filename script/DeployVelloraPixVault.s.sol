@@ -27,14 +27,14 @@ contract DeployVelloraPixVault is Script {
         console2.log("owner    :", owner);
         console2.log("predicted:", predicted);
         if (predicted.code.length > 0) {
-            console2.log("ja deployado nesta rede");
+            console2.log("already deployed on this network");
             return;
         }
         vm.startBroadcast();
         (bool ok,) = CREATE2_DEPLOYER.call(abi.encodePacked(salt, initCode));
         require(ok, "create2 deployer call failed");
         vm.stopBroadcast();
-        require(predicted.code.length > 0, "deploy nao aconteceu no endereco previsto");
+        require(predicted.code.length > 0, "no code at the predicted address after deploy");
         console2.log("deployed :", predicted);
     }
 }

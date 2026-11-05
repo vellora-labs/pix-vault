@@ -48,7 +48,7 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         uint256 q = quoteV3Path(QUOTER_V2, path, amountIn);
         uint256 minOut = withSlippage(q);
         (uint256 delivered,) = buy(
-            "robinhood UR 2.1.1 USDG->WETH (minHopPriceX36 zerado)",
+            "robinhood UR 2.1.1 USDG->WETH (minHopPriceX36 zeroed)",
             WETH,
             amountIn,
             minOut,
@@ -65,7 +65,7 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         uint256 minOut = withSlippage(q);
         uint256 before = user.balance;
         (uint256 delivered,) = buy(
-            "robinhood UR 2.1.1 USDG->ETH nativo (UNWRAP_WETH)",
+            "robinhood UR 2.1.1 USDG->native ETH (UNWRAP_WETH)",
             address(0),
             amountIn,
             minOut,
@@ -85,6 +85,6 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         vm.prank(operator);
         vm.expectRevert(); // CallFailed: UR 2.1.1 cannot decode the old input
         vault.executeBuy(keccak256("legacy-layout"), user, WETH, amountIn, withSlippage(q), DexKit.PERMIT2, calls);
-        assertEq(IERC20(USDG).balanceOf(address(vault)), units(1_000), "reserva intacta");
+        assertEq(IERC20(USDG).balanceOf(address(vault)), units(1_000), "reserve untouched");
     }
 }

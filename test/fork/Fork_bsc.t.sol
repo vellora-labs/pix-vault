@@ -42,7 +42,7 @@ contract Fork_bsc is PixVaultForkBase {
         uint256 amountIn = units(100);
         uint256 q = quoteV3(PCS_QUOTER_V2, USDT, WBNB, 100, amountIn);
         (uint256 delivered,) = buy(
-            "pcs-v3 USDT->BNB nativo (multicall+unwrap)",
+            "pcs-v3 USDT->BNB native (multicall+unwrap)",
             address(0),
             amountIn,
             withSlippage(q),
@@ -85,7 +85,7 @@ contract Fork_bsc is PixVaultForkBase {
         address[] memory path = DexKit.pathOf(USDT, WBNB);
         uint256 q = quoteV2(PCS_V2_ROUTER, path, amountIn);
         buy(
-            "pcs-v2 USDT->BNB nativo",
+            "pcs-v2 USDT->BNB native",
             address(0),
             amountIn,
             withSlippage(q),
@@ -108,6 +108,6 @@ contract Fork_bsc is PixVaultForkBase {
         vm.prank(operator);
         vm.expectRevert(); // CallFailed("Too little received")
         vault.executeBuy(keccak256("x"), user, WBNB, amountIn, q * 2, PCS_SMART_ROUTER, calls);
-        assertEq(IERC20(USDT).balanceOf(address(vault)), units(1_000), "nada saiu");
+        assertEq(IERC20(USDT).balanceOf(address(vault)), units(1_000), "nothing left the vault");
     }
 }

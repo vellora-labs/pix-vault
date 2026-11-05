@@ -121,7 +121,7 @@ contract VelloraPixVaultTest is Test {
         assertEq(spent, 100e18);
         assertEq(tkn.balanceOf(user), 95e18);
         assertEq(usdt.balanceOf(address(vault)), 9_900e18);
-        assertEq(usdt.allowance(address(vault), address(dex)), 0, "approve zerado");
+        assertEq(usdt.allowance(address(vault), address(dex)), 0, "approval reset");
         assertTrue(vault.usedOrders(keccak256("o1")));
     }
 
@@ -185,7 +185,7 @@ contract VelloraPixVaultTest is Test {
         vm.expectRevert(abi.encodeWithSelector(VelloraPixVault.InsufficientDelivery.selector, 5e18, 6e18));
         vault.executeBuy(keccak256("m"), user, address(tkn), 10e18, 6e18, address(dex), _swapCall(10e18, 5e18));
         vm.stopPrank();
-        assertEq(usdt.balanceOf(address(vault)), 10_000e18, "revert devolve tudo");
+        assertEq(usdt.balanceOf(address(vault)), 10_000e18, "revert restores everything");
     }
 
     function test_executeBuy_rejectsOverspend_andNothingSpent() public {

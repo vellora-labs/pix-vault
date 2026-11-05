@@ -34,4 +34,4 @@ done
 run op   http://127.0.0.1:8551
 run base http://127.0.0.1:8552
 pkill -f "anvil --fork-url" 2>/dev/null
-echo "logs em $LOG"
+echo "logs in $LOG"
