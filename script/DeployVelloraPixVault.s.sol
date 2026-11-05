@@ -11,7 +11,7 @@ import {VelloraPixVault} from "../src/VelloraPixVault.sol";
  * (USDT/USDG) AFTERWARDS (`setReserve`), precisely so the init code is identical.
  *
  *   OWNER=0x… SALT=vellora-pix-vault-v1 forge script script/DeployVelloraPixVault.s.sol \
- *     --rpc-url <rpc> --broadcast --private-key <deployer>   (the deployer pays the gas; it does not have to be the owner)
+ *     --rpc-url <rpc> --broadcast --account <keystore>   (the deployer pays the gas; it does not have to be the owner)
  *
  * Without --broadcast it only simulates: nothing is sent, and the "deployed :"
  * line it prints comes from the simulation.

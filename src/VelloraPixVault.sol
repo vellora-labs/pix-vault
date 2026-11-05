@@ -222,6 +222,8 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
     function _checkLimits(uint256 amount) internal {
         if (amount == 0) revert AmountZero();
         if (amount > maxAmountPerOrder) revert AboveMaxPerOrder(amount, maxAmountPerOrder);
+        // Intentional floor to the start of the UTC day.
+        // forge-lint: disable-next-line(divide-before-multiply)
         uint64 today = uint64((block.timestamp / 1 days) * 1 days);
         if (today != dayStart) {
             dayStart = today;
