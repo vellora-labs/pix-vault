@@ -19,7 +19,7 @@ interface IERC20Meta {
 abstract contract PixVaultForkBase is Test {
     VelloraPixVault internal vault;
     address internal owner = makeAddr("vault-owner");
-    address internal operator = makeAddr("vault-operator-7702");
+    address internal operator = makeAddr("vault-operator");
     address internal user = makeAddr("pix-user");
 
     address internal reserve;

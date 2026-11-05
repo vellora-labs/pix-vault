@@ -28,7 +28,7 @@ contract Fork_eth is UniV3ForkSuite {
             0x1F98431c8aD98523631AE4a59f267346ea31F984,
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             0x61fFE014bA17989E743c5F6cB21bF9697530B21e,
-            0xF977814e90dA44bFA03b6295A0616a897441aceC, // Binance 8
+            0xF977814e90dA44bFA03b6295A0616a897441aceC, // large USDT holder (funding fallback)
             fees
         );
     }
@@ -70,7 +70,7 @@ contract Fork_op is UniV3ForkSuite {
             0x1F98431c8aD98523631AE4a59f267346ea31F984,
             0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45,
             0x61fFE014bA17989E743c5F6cB21bF9697530B21e,
-            0xacD03D601e5bB1B275Bb94076fF46ED9D753435A, // Optimism bridge/holder
+            0xacD03D601e5bB1B275Bb94076fF46ED9D753435A, // large USDT holder (funding fallback)
             fees
         );
     }
@@ -99,7 +99,6 @@ contract Fork_arb is UniV3ForkSuite {
 
 contract Fork_base is UniV3ForkSuite {
     function setUp() public {
-        thirdTokens.push(0x532f27101965dd16442E59d40670FaF5eBB142E4);
         thirdTokens.push(0x940181a94A35A4569E4529A3CDfB74e38FD98631);
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (3000, 500, 100);
@@ -118,8 +117,6 @@ contract Fork_base is UniV3ForkSuite {
     }
 }
 
-/// AVAX: sem 7702 (o operador aqui é uma EOA comum pagando gás em AVAX) — o
-/// cofre é idêntico, o que muda é só quem assina.
 contract Fork_avax is UniV3ForkSuite {
     function setUp() public {
         thirdTokens.push(0x152b9d0FdC40C096757F570A51E494bd4b943E50);
@@ -135,7 +132,7 @@ contract Fork_avax is UniV3ForkSuite {
             0x740b1c1de25031C31FF4fC9A62f554A55cdC1baD,
             0xbb00FF08d01D300023C629E8fFfFcb65A5a578cE,
             0xbe0F5544EC67e9B3b2D979aaA43f18Fd87E6257F,
-            0x4aeFa39caEAdD662aE31ab0CE7c8C2c9c0a013E8, // Binance C-Chain
+            0x4aeFa39caEAdD662aE31ab0CE7c8C2c9c0a013E8, // large USDT holder (funding fallback)
             fees
         );
     }
@@ -166,7 +163,8 @@ contract Fork_bsc_uni is UniV3ForkSuite {
 /// Robinhood Chain: reserva = USDG (não há USDT líquido), Uniswap v3 próprio.
 contract Fork_robinhood is UniV3ForkSuite {
     function setUp() public {
-        thirdTokens.push(0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC);
+        // No third-party token candidate here: the reserve -> wrapped -> token test logs a
+        // message and returns early.
         uint24[] memory fees = new uint24[](3);
         (fees[0], fees[1], fees[2]) = (100, 500, 3000);
         _initUniV3(

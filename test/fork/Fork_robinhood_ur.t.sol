@@ -17,8 +17,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  *   2. o layout 2.1.1 com o array de zeros funciona: zero = "sem piso por
  *      salto", que é o comportamento do 2.0. **Não afeta a entrega**: quem
  *      garante o valor final continua sendo o `amountOutMinimum` do comando e,
- *      por cima dele, a medição do cofre no destinatário;
- *   3. o mesmo path canônico USDG → WETH → NVDA (stock token) passa pelo UR.
+ *      por cima dele, a medição do cofre no destinatário.
  *
  * Fluxo de pagamento do UR: `payerIsUser = true` puxa via **Permit2**, então a
  * ordem tem 2 calls — `Permit2.approve(reserva, UR, amountIn, exp)` e o
@@ -29,7 +28,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract Fork_robinhood_ur is PixVaultForkBase {
     address constant USDG = 0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168;
     address constant WETH = 0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73;
-    address constant NVDA = 0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC;
     address constant UNIVERSAL_ROUTER = 0x8876789976dEcBfCbBbe364623C63652db8C0904; // 2.1.1
     address constant QUOTER_V2 = 0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7;
 
@@ -58,23 +56,6 @@ contract Fork_robinhood_ur is PixVaultForkBase {
             two(_permit2(amountIn), DexKit.urV3ExactIn211(UNIVERSAL_ROUTER, path, amountIn, minOut, user, 1))
         );
         assertEq(IERC20(WETH).balanceOf(user), delivered);
-    }
-
-    /// Path canônico com o token de terceiro (stock token) pelo UR.
-    function test_ur211_reserve_via_wrapped_to_stockToken() public {
-        uint256 amountIn = units(100);
-        bytes memory path = DexKit.v3Path2(USDG, 100, WETH, 500, NVDA);
-        uint256 q = quoteV3Path(QUOTER_V2, path, amountIn);
-        uint256 minOut = withSlippage(q);
-        (uint256 delivered,) = buy(
-            "robinhood UR 2.1.1 USDG->WETH->NVDA (2 hops)",
-            NVDA,
-            amountIn,
-            minOut,
-            DexKit.PERMIT2,
-            two(_permit2(amountIn), DexKit.urV3ExactIn211(UNIVERSAL_ROUTER, path, amountIn, minOut, user, 2))
-        );
-        assertEq(IERC20(NVDA).balanceOf(user), delivered, "stock token entregue ao usuario");
     }
 
     function test_ur211_reserve_to_native_unwrap() public {

@@ -14,7 +14,7 @@ contract Fork_bsc is PixVaultForkBase {
     address constant PCS_SMART_ROUTER = 0x13f4EA83D0bd40E75C8222255bc855a974568Dd4; // v3 SmartRouter
     address constant PCS_QUOTER_V2 = 0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997;
     address constant PCS_V2_ROUTER = 0x10ED43C718714eb63d5aA57B78B54704E256024E;
-    address constant USDT_WHALE = 0x8894E0a0c962CB723c1976a4421c95949bE2D4E3; // Binance hot wallet
+    address constant USDT_WHALE = 0x8894E0a0c962CB723c1976a4421c95949bE2D4E3; // large USDT holder (funding fallback)
 
     function setUp() public {
         vm.createSelectFork(vm.envOr("BSC_RPC_URL", string("https://bsc-rpc.publicnode.com")));
