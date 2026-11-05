@@ -14,7 +14,8 @@ optimizer_runs = 200
 additional_compiler_profiles = [{ name = "via-ir", via_ir = true }]
 compilation_restrictions = [{ paths = "test/fork/**", via_ir = true }]
 # Fork tests per network: `forge test --match-contract Fork_<key> --fork-url <rpc>`
-# (or run-fork-battery.sh). Each fork test's setUp selects its own fork (RPC from the
+# (or run-fork-battery.sh). For OP Mainnet and Base leave out --fork-url or use
+# the script (see the README). Each fork test's setUp selects its own fork (RPC from the
 # env vars below or a public default); `forge test --no-match-path 'test/fork/*'`
 # runs only the unit tests.
 

@@ -1,7 +1,7 @@
 # pix-vault
 
-A per-network vault that delivers PIX on-ramp purchases on EVM chains from a
-stablecoin reserve.
+A per-network vault designed to deliver PIX on-ramp purchases on EVM chains
+from a stablecoin reserve.
 
 > **Status: experimental. Not deployed. Not audited.** Do not use it with real funds.
 
@@ -10,14 +10,14 @@ stablecoin reserve.
 PIX is Brazil's instant payment system. In a PIX on-ramp, a customer pays in
 Brazilian reais and receives crypto in their own wallet.
 
-`VelloraPixVault` is the on-chain part of that flow on one EVM network. The vault
-holds a **reserve** of the network's stablecoin (USDT, USDG and so on). After a
-customer pays, an off-chain **operator** account asks the vault to buy the
-requested token with part of the reserve and to deliver it straight to the
-customer's address. The swap route is built off-chain (for example from a DEX
-router's ABI or an aggregator's API) and passed to the vault as calldata. The
-vault does not trust the route: it limits what the route can spend and checks
-what the recipient actually received.
+`VelloraPixVault` is designed as the on-chain part of that flow on one EVM
+network. The vault holds a **reserve** of the network's stablecoin (USDT, USDG
+and so on). After a customer pays, an off-chain **operator** account asks the
+vault to buy the requested token with part of the reserve and to deliver it
+straight to the customer's address. The swap route is built off-chain (for
+example from a DEX router's ABI or an aggregator's API) and passed to the vault
+as calldata. The vault does not trust the route: it limits what the route can
+spend and checks what the recipient actually received.
 
 The same contract is meant to be deployed once per network, with the same
 bytecode everywhere.
@@ -140,8 +140,10 @@ What the contract enforces on-chain:
 - `renounceOwnership()` is inherited from OpenZeppelin and not disabled. One call
   leaves the vault without an owner while existing operators keep working within
   the caps.
-- There is no deadline parameter. A delayed transaction still executes as long as
-  the delivery meets `minOut`.
+- The vault has no deadline of its own. A delayed transaction still executes as
+  long as the delivery meets `minOut`, unless the route's calldata carries a
+  deadline. In the test encoders, the PancakeSwap v2 and Universal Router calls
+  set one (`block.timestamp + 600`); the `SwapRouter02`-style calls do not.
 - `orderId` is an opaque `bytes32` that is not bound to the order's parameters.
 - A net inflow of reserve during the calls, or a drop in the recipient's balance,
   reverts with an arithmetic panic (`0x11`) instead of a named error.
@@ -174,11 +176,13 @@ networks, so match the reserve by address, not by symbol. The tests never read
 the chain ID; the column is for reference. The addresses are in
 [`test/fork/`](test/fork/).
 
-Each fork setUp deploys a fresh vault, funds it with 1,000 units of the reserve
-and places purchase orders of 100 units, with `minOut` set to 97% of the
-network's own on-chain quote (QuoterV2 or `getAmountsOut`). Every purchase
-asserts that the delivery covers `minOut`, that the spend is at most `amountIn`
-and that the reserve allowance to the spender is back to zero.
+Each fork setUp deploys a fresh vault and funds it with 1,000 units of the
+reserve. Swap orders use 100 units, with `minOut` set to 97% of the network's
+own on-chain quote (QuoterV2 or `getAmountsOut`); the impossible and too-high
+`minOut` cases use twice the quote. Every successful swap asserts that the
+delivery covers `minOut`, that the spend is at most `amountIn` and that the
+reserve allowance to the spender is back to zero. The `transferReserve` tests
+send 50 units and check the recipient's balance.
 
 - **Uniswap v3 suite** (`UniV3ForkSuite`, 6 tests on each of the 8 networks):
   reserve to wrapped native; reserve to native coin (multicall + `unwrapWETH9`);
@@ -203,10 +207,12 @@ vault (`VelloraPixVault.via-ir` in `forge build --sizes`, with a 4,802-byte
 runtime). The unit tests and the deployment script use the default build
 described above.
 
-The fork suites were last run against mainnet forks in September 2026, when they
-were written. The fixture changes made for publication (the token candidates on
-Base and Robinhood Chain, the operator's test address and one removed Universal
-Router case) have been compiled but not yet run against a fork.
+On 5 November 2026 (23:35–23:38 UTC) all 58 fork cases passed against forks of
+the live networks, through the public RPC fallbacks and with the same forge and
+anvil commands as under [Fork tests](#fork-tests). On Robinhood Chain, the
+reserve to wrapped native to token case passed as the early return described
+above. Because `minOut` comes from the route's own quote, a pass shows that the
+vault's checks hold, not that the route found a good price.
 
 ## Running the tests
 
@@ -242,8 +248,13 @@ FOUNDRY_PROFILE=fork forge test --match-contract Fork_robinhood_ur \
 Uniswap v3 suite one network at a time, prints the PASS/FAIL lines and writes
 full logs to `$LOG_DIR` (default `/tmp/pix-vault-fork`). For OP Mainnet and Base
 it starts local anvil forks with `--chain-id 1` and passes them as `--fork-url`.
-This works around a Foundry 1.7.1 failure on OP Stack chains after the Isthmus
-upgrade (`Missing operator fee scalar for isthmus L1 Block`).
+That anvil instance only gives forge a starting chain that is not an OP Stack
+chain: each setUp still forks the network's own RPC, and that is the state the
+tests read. It works around a Foundry 1.7.1 failure after the Isthmus upgrade
+(`Missing operator fee scalar for isthmus L1 Block`), which appears when the OP
+Mainnet or Base RPC is passed directly as `--fork-url`. Because each setUp
+selects its own fork, running those two suites without `--fork-url` also
+avoids it.
 
 Keep in mind:
 
@@ -283,17 +294,22 @@ OWNER=0x... forge script script/DeployVelloraPixVault.s.sol --rpc-url <rpc>
 | `test/unit/` | Unit tests with mock tokens and a mock DEX |
 | `test/fork/` | Mainnet fork tests (one or two contracts per network) and the `DexKit` calldata encoders |
 | `run-fork-battery.sh` | Runs the fork suites network by network |
-| `lib/forge-std/` | Vendored forge-std 1.16.2 |
+| `lib/forge-std/` | Vendored forge-std 1.16.2: upstream commit 5cf980e, the v1.16.2 tag plus one Dependabot commit that only bumps action pins in forge-std's own CI workflow |
 
 ## Status
 
 Experimental. The contract has not been deployed to any network and has not been
 audited. Known test gaps include:
 
-- no test asserts the `Overspent`, `ReserveNotSet`, `InvalidRecipient`,
-  `AmountZero`, `NativeTransferFailed` or `CallFailed` errors by selector (the
-  overspend and failing-call cases use a bare `expectRevert`), and no test
-  asserts an event;
+- no test triggers `Overspent`: in the overspend unit test, the mock reserve
+  token's `transferFrom` (called by the mock DEX) fails on the 10-unit
+  allowance first, and the test catches the resulting `CallFailed` with a bare
+  `expectRevert`;
+- no test triggers `ReserveNotSet`, `InvalidRecipient`, `AmountZero` or
+  `NativeTransferFailed`; `CallFailed` is reached only under a bare
+  `expectRevert`, and no test asserts an event;
+- no test uses a fee-on-transfer token (the fee-on-transfer encoders in
+  `test/fork/DexKit.sol` are currently unused);
 - `InvalidTokenOut` is checked only in the fork tests;
 - no test withdraws the native coin or checks that `pause` blocks
   `transferReserve`;
@@ -305,12 +321,19 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 Written in September 2026 inside Vellora's private repositories and open-sourced
 in November 2026. Before publication the history was redacted of internal
-references: the first two commits keep their original dates, with internal-only
-files and lines removed.
+references. The first two commits keep their original author dates (7 and 8
+September 2026, Brasília time, UTC−3), with internal-only files, lines and
+commit-message passages removed. The commits after them were made on 5 November
+2026 to trim test fixtures, translate, license and document the code, and set up
+CI; each message says what it changes. All committer dates are from 5 November
+2026 (Brasília time), when the history was rewritten, and the first seven
+November commits share one author time because they were re-created together.
 
 ## License
 
 Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE). The vendored
-`lib/forge-std` keeps its own license (MIT OR Apache-2.0). The two September
-commits predate this choice and still carry `MIT` SPDX headers; the Apache-2.0
-headers start with the commit that adds `LICENSE`.
+`lib/forge-std` keeps its own license (MIT OR Apache-2.0). Every commit before
+the one that adds `LICENSE` (the two September commits and the first five
+November commits) still carries `MIT` SPDX headers, and their `package.json`
+says ISC, the npm default; the Apache-2.0 headers start with the commit that
+adds `LICENSE`.
