@@ -7,21 +7,21 @@ import {VelloraPixVault} from "../../src/VelloraPixVault.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
- * Universal Router da Robinhood Chain — o caso do **campo extra**.
+ * Universal Router on Robinhood Chain: the **extra field** case.
  *
- * O UR de lá é 2.1.1: o comando `V3_SWAP_EXACT_IN` ganhou um argumento por
- * salto, `minHopPriceX36` (`uint256[]`), que não existe no layout 1.2/2.0.
- * Calldata montada com o encoder antigo **reverte**. Este arquivo prova:
+ * The UR there is 2.1.1: the `V3_SWAP_EXACT_IN` command gained one argument per
+ * hop, `minHopPriceX36` (`uint256[]`), which does not exist in the 1.2/2.0 layout.
+ * Calldata built with the old encoder **reverts**. This file proves that:
  *
- *   1. o layout antigo (5 campos) reverte — logo o campo extra é obrigatório;
- *   2. o layout 2.1.1 com o array de zeros funciona: zero = "sem piso por
- *      salto", que é o comportamento do 2.0. **Não afeta a entrega**: quem
- *      garante o valor final continua sendo o `amountOutMinimum` do comando e,
- *      por cima dele, a medição do cofre no destinatário.
+ *   1. the old layout (5 fields) reverts, so the extra field is mandatory;
+ *   2. the 2.1.1 layout with an array of zeros works: zero = "no per-hop price
+ *      floor", which is the 2.0 behaviour. **It does not affect delivery**: the
+ *      final amount is still guaranteed by the command's `amountOutMinimum` and,
+ *      on top of it, by the vault's measurement at the recipient.
  *
- * Fluxo de pagamento do UR: `payerIsUser = true` puxa via **Permit2**, então a
- * ordem tem 2 calls — `Permit2.approve(reserva, UR, amountIn, exp)` e o
- * `execute` — e o `spender` da ordem é a Permit2 (o cofre aprova só ela).
+ * UR payment flow: `payerIsUser = true` pulls through **Permit2**, so the order
+ * has 2 calls, `Permit2.approve(reserve, UR, amountIn, exp)` and `execute`, and
+ * the order's `spender` is Permit2 (the vault approves only Permit2).
  *
  * forge test --match-contract Fork_robinhood_ur --fork-url https://rpc.mainnet.chain.robinhood.com -vv
  */
@@ -35,7 +35,7 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         vm.createSelectFork(vm.envOr("ROBINHOOD_RPC_URL", string("https://rpc.mainnet.chain.robinhood.com")));
         address[] memory targets = new address[](1);
         targets[0] = UNIVERSAL_ROUTER;
-        _setUpVault(USDG, targets, 1_000, address(0)); // Permit2 já entra na allowlist na base
+        _setUpVault(USDG, targets, 1_000, address(0)); // the base contract already allowlists Permit2
     }
 
     function _permit2(uint256 amountIn) internal pure returns (VelloraPixVault.Call memory) {
@@ -75,7 +75,7 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         assertEq(user.balance - before, delivered);
     }
 
-    /// O layout 1.2/2.0 (sem o campo extra) não serve nesta rede.
+    /// The 1.2/2.0 layout (without the extra field) does not work on this network.
     function test_ur_legacyLayout_reverts_on_211() public {
         uint256 amountIn = units(100);
         bytes memory path = DexKit.v3Path(USDG, 100, WETH);
@@ -83,7 +83,7 @@ contract Fork_robinhood_ur is PixVaultForkBase {
         VelloraPixVault.Call[] memory calls =
             two(_permit2(amountIn), DexKit.urV3ExactIn(UNIVERSAL_ROUTER, path, amountIn, withSlippage(q), user));
         vm.prank(operator);
-        vm.expectRevert(); // CallFailed: o UR 2.1.1 não decodifica o input antigo
+        vm.expectRevert(); // CallFailed: UR 2.1.1 cannot decode the old input
         vault.executeBuy(keccak256("legacy-layout"), user, WETH, amountIn, withSlippage(q), DexKit.PERMIT2, calls);
         assertEq(IERC20(USDG).balanceOf(address(vault)), units(1_000), "reserva intacta");
     }

@@ -15,17 +15,17 @@ interface IUniV3Pool {
 }
 
 /**
- * Bateria comum "reserva → nativo (wrapped e desembrulhado) via Uniswap v3
- * SwapRouter02" — a família que existe em 7 das 8 redes-alvo (na BSC o
- * SwapRouter02 da Uniswap também existe, com factory próprio). Cada rede
- * herda, preenche os endereços verificados on-chain e ganha os mesmos testes.
+ * Shared suite "reserve → native coin (wrapped and unwrapped) through Uniswap v3
+ * SwapRouter02", the router family present on all 8 target networks (on BSC
+ * through Uniswap's own deployment, next to PancakeSwap). Each network
+ * inherits it, fills in the addresses verified on-chain and gets the same tests.
  *
- * O que cada teste prova, do ponto de vista do cofre:
- *   - a calldata de um router real passa pela allowlist e executa;
- *   - a entrega é medida no DESTINATÁRIO e cobre o minOut do quoter;
- *   - o gasto nunca excede o amountIn e o approve volta a zero;
- *   - saída em nativo (multicall + unwrapWETH9) chega como saldo do usuário;
- *   - minOut impossível reverte a ordem inteira sem mover a reserva.
+ * What each test proves, from the vault's point of view:
+ *   - calldata for a real router passes the allowlist and executes;
+ *   - delivery is measured at the RECIPIENT and covers the quoter's minOut;
+ *   - the spend never exceeds amountIn and the approval goes back to zero;
+ *   - native output (multicall + unwrapWETH9) arrives as the user's balance;
+ *   - an impossible minOut reverts the whole order without moving the reserve.
  */
 abstract contract UniV3ForkSuite is PixVaultForkBase {
     address internal factory;
@@ -34,9 +34,9 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
     address internal wnative;
     address internal whale;
     string internal chainLabel;
-    /// Fee tiers a testar, em ordem de preferência.
+    /// Fee tiers to try, in order of preference.
     uint24[] internal feeTiers;
-    /// Candidatos de token de terceiro para o path canônico reserva → wrapped → token.
+    /// Third-party token candidates for the canonical path reserve → wrapped → token.
     address[] internal thirdTokens;
 
     function _initUniV3(
@@ -64,7 +64,7 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
         _setUpVault(reserve_, targets, 1_000, whale_);
     }
 
-    /// Primeiro fee tier com pool, liquidez > 0 e quote > 0 para 100 da reserva.
+    /// First fee tier with a pool, liquidity > 0 and a quote > 0 for 100 units of the reserve.
     function _bestFee(uint256 amountIn) internal returns (uint24 fee, uint256 quoted) {
         for (uint256 i = 0; i < feeTiers.length; i++) {
             address pool = IUniV3Factory(factory).getPool(reserve, wnative, feeTiers[i]);
@@ -116,10 +116,10 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
     }
 
     /**
-     * `amountIn` sempre em USDT e, quando
-     * necessário, path **reserva → wrapped nativo → token** — nunca um par
-     * direto USDT/token que pode não existir ou ter liquidez pior.
-     * Escolhe o primeiro token candidato com pool wrapped/token e quote > 0.
+     * `amountIn` is always in the reserve stablecoin and, when needed, the path is
+     * **reserve → wrapped native → token**, never a direct stablecoin/token pair
+     * that may not exist or may have worse liquidity.
+     * Picks the first candidate token with a wrapped/token pool and a quote > 0.
      */
     function test_uniV3_reserve_via_wrapped_to_token() public {
         if (thirdTokens.length == 0) {
@@ -187,7 +187,7 @@ abstract contract UniV3ForkSuite is PixVaultForkBase {
         assertEq(IERC20(reserve).balanceOf(user), units(50));
     }
 
-    /// O cofre recusa entregar a própria reserva por `executeBuy` (só por transferReserve).
+    /// The vault refuses to deliver the reserve itself through `executeBuy` (only through transferReserve).
     function test_rejects_tokenOut_equal_reserve() public {
         VelloraPixVault.Call[] memory calls = new VelloraPixVault.Call[](0);
         vm.prank(operator);

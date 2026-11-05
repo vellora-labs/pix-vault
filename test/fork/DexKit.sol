@@ -4,17 +4,18 @@ pragma solidity 0.8.36;
 import {VelloraPixVault} from "../../src/VelloraPixVault.sol";
 
 /**
- * Monta as `Call[]` que o cofre executa contra cada família de DEX. As ABIs
- * são as canônicas:
- *  - Uniswap v3 SwapRouter02 / PancakeSwap SmartRouter v3: exactInputSingle
- *    SEM deadline, ADDRESS_THIS = address(2), unwrapWETH9(amountMin, recipient),
+ * Builds the `Call[]` the vault executes against each DEX family. The ABIs are
+ * the canonical ones:
+ *  - Uniswap v3 SwapRouter02 / PancakeSwap v3 SmartRouter: exactInputSingle
+ *    WITHOUT deadline, ADDRESS_THIS = address(2), unwrapWETH9(amountMin, recipient),
  *    multicall(bytes[]).
- *  - Routers V2-like (Pancake V2, QuickSwap, Trader Joe v1, Pangolin):
+ *  - V2-style routers (Pancake V2, QuickSwap, Trader Joe v1, Pangolin):
  *    swapExactTokensForTokens / swapExactTokensForETH (5 args).
- *  - Universal Router 1.2 / 2.0: execute(bytes,bytes[],uint256) com
- *    V3_SWAP_EXACT_IN (0x00) e UNWRAP_WETH (0x0c); pagamento via Permit2
- *    (payerIsUser=true) → o cofre aprova a Permit2 e chama
- *    Permit2.approve(token, ur, amount, expiration) na mesma ordem.
+ *  - Universal Router 1.2 / 2.0: execute(bytes,bytes[],uint256) with
+ *    V3_SWAP_EXACT_IN (0x00) and UNWRAP_WETH (0x0c); payment through Permit2
+ *    (payerIsUser=true) → the vault approves Permit2 and calls
+ *    Permit2.approve(token, ur, amount, expiration) within the same order
+ *    (the same executeBuy call).
  */
 library DexKit {
     address internal constant ADDRESS_THIS = address(2);
@@ -69,7 +70,7 @@ library DexKit {
         return VelloraPixVault.Call(router, data);
     }
 
-    /// swap para o wrapped com recipient = router (ADDRESS_THIS) + unwrapWETH9 para o usuário, numa multicall.
+    /// Swap to the wrapped native with recipient = router (ADDRESS_THIS), then unwrapWETH9 to the user, in one multicall.
     function srExactInputSingleNativeOut(
         address router,
         address tokenIn,
@@ -106,7 +107,7 @@ library DexKit {
         return VelloraPixVault.Call(router, data);
     }
 
-    /// FoT: o router mede o saldo do destinatário, então `minOut` é o LÍQUIDO recebido.
+    /// Fee-on-transfer: the router measures the recipient's balance, so `minOut` is the NET amount received.
     function v2SwapSupportingFeeOnTransfer(
         address router,
         uint256 amountIn,
@@ -191,7 +192,7 @@ library DexKit {
         return VelloraPixVault.Call(ur, _urExecute(commands, inputs));
     }
 
-    /// V3_SWAP_EXACT_IN para ADDRESS_THIS + UNWRAP_WETH para o usuário.
+    /// V3_SWAP_EXACT_IN to ADDRESS_THIS + UNWRAP_WETH to the user.
     function urV3ExactInNativeOut(address ur, bytes memory path, uint256 amountIn, uint256 minOut, address recipient)
         internal
         view
@@ -205,12 +206,12 @@ library DexKit {
     }
 
     /**
-     * Universal Router **2.1.1** (Robinhood Chain): o V3_SWAP_EXACT_IN ganhou um
-     * argumento por hop, `minHopPriceX36` — piso de preço de cada salto, em X36.
-     * Passar zeros desliga o bound (mesmo comportamento do 2.0) e NÃO afeta a
-     * entrega: o `amountOutMinimum` continua sendo o guard do valor final, e o
-     * cofre mede a entrega no destinatário de qualquer jeito.
-     * `hops` = número de pools no path (2 endereços = 1 hop).
+     * Universal Router **2.1.1** (Robinhood Chain): V3_SWAP_EXACT_IN gained one
+     * argument per hop, `minHopPriceX36`, a price floor for each hop in X36.
+     * Passing zeros disables the bound (same behaviour as 2.0) and does NOT
+     * affect delivery: `amountOutMinimum` still guards the final amount, and the
+     * vault measures the delivery at the recipient anyway.
+     * `hops` = number of pools in the path (2 addresses = 1 hop).
      */
     function urV3ExactIn211(
         address ur,
@@ -241,7 +242,7 @@ library DexKit {
         return VelloraPixVault.Call(ur, _urExecute(commands, inputs));
     }
 
-    /// Variante com inputs já codificados (ex.: layout 2.1.1 com minHopPriceX36).
+    /// Variant with pre-encoded inputs (e.g. the 2.1.1 layout with minHopPriceX36).
     function urExecuteRaw(address ur, bytes memory commands, bytes[] memory inputs)
         internal
         view
@@ -272,7 +273,7 @@ library DexKit {
         p[1] = b;
     }
 
-    /// Path canônico: reserva → wrapped nativo → token.
+    /// Canonical path: reserve → wrapped native → token.
     function pathOf3(address a, address b, address c) internal pure returns (address[] memory p) {
         p = new address[](3);
         p[0] = a;
@@ -281,7 +282,7 @@ library DexKit {
     }
 }
 
-/// Quoters (chamados via eth_call nos testes; QuoterV2 é non-view mas funciona em call).
+/// Quoters (called through eth_call in the tests; QuoterV2 is non-view but works in a call).
 interface IQuoterV2 {
     struct QuoteExactInputSingleParams {
         address tokenIn;

@@ -5,15 +5,16 @@ import {Script, console2} from "forge-std/Script.sol";
 import {VelloraPixVault} from "../src/VelloraPixVault.sol";
 
 /**
- * Deploy DETERMINÍSTICO via o deployer CREATE2 canônico (0x4e59b448…, presente
- * em todas as 8 redes, inclusive Robinhood 4663): mesmo `owner` + mesmo `salt`
- * ⇒ mesmo endereço em toda rede. A reserva (USDT/USDG) é configurada DEPOIS
- * pelo owner (`setReserve`), justamente para o init code ser idêntico.
+ * DETERMINISTIC deployment through the canonical CREATE2 deployer (0x4e59b448…,
+ * present on all 8 target networks, including Robinhood Chain 4663): same `owner`
+ * + same `salt` ⇒ same address on every network. The owner sets the reserve
+ * (USDT/USDG) AFTERWARDS (`setReserve`), precisely so the init code is identical.
  *
  *   OWNER=0x… SALT=vellora-pix-vault-v1 forge script script/DeployVelloraPixVault.s.sol \
- *     --rpc-url <rpc> --broadcast --private-key <deployer>   (o deployer paga o gás; não precisa ser o owner)
+ *     --rpc-url <rpc> --broadcast --private-key <deployer>   (the deployer pays the gas; it does not have to be the owner)
  *
- * Sem --broadcast só imprime o endereço previsto.
+ * Without --broadcast it only simulates: nothing is sent, and the "deployed :"
+ * line it prints comes from the simulation.
  */
 contract DeployVelloraPixVault is Script {
     address internal constant CREATE2_DEPLOYER = 0x4e59b44847b379578588920cA78FbF26c0B4956C;

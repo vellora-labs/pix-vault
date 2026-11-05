@@ -9,25 +9,28 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 /**
  * @title VelloraPixVault
- * @notice Cofre por rede para a compra via PIX:
- *         segura a RESERVA (stable da rede: USDT, USDG…) e executa, por
- *         ordem, calldata de swap de um agregador/DEX allowlistado, entregando
- *         o token (ou o nativo) DIRETAMENTE ao usuário.
+ * @notice Per-network vault for PIX-funded purchases: it holds the RESERVE
+ *         (the network's stablecoin: USDT, USDG…) and, for each order, runs
+ *         swap calldata from an allowlisted aggregator or DEX, delivering the
+ *         token (or the native coin) DIRECTLY to the user.
  *
- *         O que o contrato garante, independentemente de quem opera:
- *           - idempotência on-chain (`usedOrders`);
- *           - só operadores executam; só alvos allowlistados recebem calls;
- *           - a reserva só sai via approve exato para o `spender` da ordem, e
- *             o gasto medido nunca excede `amountIn`;
- *           - a entrega é medida no DESTINATÁRIO (delta de saldo) e tem de
- *             cobrir `minOut`;
- *           - tetos por ordem e por dia (janela UTC);
- *           - nenhuma call leva `value`, nenhuma call mira a própria reserva.
+ *         What the contract enforces, regardless of who operates it:
+ *           - on-chain idempotency (`usedOrders`);
+ *           - only operators execute orders; only allowlisted targets receive calls;
+ *           - in `executeBuy` the reserve is approved to the order's `spender`
+ *             for exactly `amountIn`, and the measured net spend never exceeds
+ *             `amountIn`;
+ *           - delivery is measured at the RECIPIENT (balance delta) and must
+ *             cover `minOut`;
+ *           - per-order and per-day caps (UTC day window);
+ *           - no call carries `value`, and no call may target the reserve token
+ *             or the vault itself.
  *
- *         Não há registro de tokens/rotas por rede:
- *         a rota vem de fora (router/agregador) como calldata.
- *         Mesmo bytecode em todas as redes; a reserva é configurada pelo
- *         owner depois do deploy (permite CREATE2 com o mesmo endereço).
+ *         There is no per-network token or route registry: the route comes
+ *         from outside (router/aggregator) as calldata.
+ *         Same bytecode on every network; the owner sets the reserve after
+ *         deployment, which keeps the init code identical so CREATE2 can use
+ *         the same address everywhere.
  */
 contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -42,9 +45,9 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
     mapping(address => bool) public isAllowedTarget;
     mapping(bytes32 => bool) public usedOrders;
 
-    /// @notice Máximo de reserva por ordem (unidades mínimas). 0 = bloqueado (fail-closed).
+    /// @notice Maximum reserve per order, in the token's smallest units. 0 = everything blocked (fail-closed).
     uint256 public maxAmountPerOrder;
-    /// @notice Máximo de reserva por dia UTC (unidades mínimas). 0 = sem teto diário.
+    /// @notice Maximum reserve per UTC day, in the token's smallest units. 0 = no daily cap.
     uint256 public dailyCap;
     uint256 public spentToday;
     uint64 public dayStart;
@@ -93,7 +96,7 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
 
     // ----------------------------------------------------------------- admin
 
-    /// @notice Define a reserva. Só pode trocar com saldo zero da reserva atual.
+    /// @notice Sets the reserve token. It can only change while the vault holds none of the current reserve.
     function setReserve(address token) external onlyOwner {
         if (address(reserve) != address(0) && reserve.balanceOf(address(this)) != 0) revert ReserveHasBalance();
         reserve = IERC20(token);
@@ -124,7 +127,7 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
         _unpause();
     }
 
-    /// @notice Saque do owner (reserva, qualquer ERC-20 preso, ou nativo com token = 0).
+    /// @notice Owner withdrawal: the reserve, any stuck ERC-20, or the native coin (token = address(0)).
     function withdraw(address token, address to, uint256 amount) external onlyOwner {
         if (to == address(0)) revert InvalidRecipient();
         if (token == address(0)) {
@@ -136,14 +139,14 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
         emit Withdrawn(token, to, amount);
     }
 
-    // -------------------------------------------------------------- operação
+    // ------------------------------------------------------------ operations
 
     /**
-     * @notice Executa uma compra: aprova `spender` por exatamente `amountIn`,
-     *         roda as `calls` (todas em alvos allowlistados), zera o approve e
-     *         mede gasto (≤ amountIn) e entrega ao `recipient` (≥ minOut).
-     * @param tokenOut token entregue; address(0) = nativo (medido em `recipient.balance`).
-     * @param spender  quem puxa a reserva (Augustus, Permit2, SmartRouter…).
+     * @notice Executes a purchase: approves `spender` for exactly `amountIn`,
+     *         runs the `calls` (all on allowlisted targets), resets the approval
+     *         and measures the spend (≤ amountIn) and the delivery to `recipient` (≥ minOut).
+     * @param tokenOut token delivered; address(0) = native coin (measured on `recipient.balance`).
+     * @param spender  the address that pulls the reserve (Augustus, Permit2, SmartRouter…).
      */
     function executeBuy(
         bytes32 orderId,
@@ -173,7 +176,7 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
         _checkLimits(amountIn);
     }
 
-    /// Aprova `spender` por `amountIn`, roda as calls em alvos allowlistados, zera o approve e mede o gasto.
+    /// Approves `spender` for `amountIn`, runs the calls on allowlisted targets, resets the approval and measures the spend.
     function _swap(address spender, uint256 amountIn, Call[] calldata calls) internal returns (uint256 spent) {
         IERC20 reserve_ = reserve;
         uint256 reserveBefore = reserve_.balanceOf(address(this));
@@ -193,7 +196,7 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
         if (spent > amountIn) revert Overspent(spent, amountIn);
     }
 
-    /// @notice Entrega a própria reserva (compra de USDT/USDG): sem swap.
+    /// @notice Delivers the reserve token itself (a purchase of USDT/USDG): no swap.
     function transferReserve(bytes32 orderId, address recipient, uint256 amount)
         external
         onlyOperator
@@ -209,7 +212,7 @@ contract VelloraPixVault is Ownable2Step, Pausable, ReentrancyGuard {
         emit ReserveTransferred(orderId, recipient, amount);
     }
 
-    // ------------------------------------------------------------- internos
+    // ------------------------------------------------------------ internals
 
     function _consumeOrder(bytes32 orderId) internal {
         if (usedOrders[orderId]) revert OrderAlreadyUsed(orderId);

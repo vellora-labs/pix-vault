@@ -4,14 +4,14 @@ pragma solidity 0.8.36;
 import {UniV3ForkSuite} from "./UniV3ForkSuite.sol";
 
 /**
- * Uma classe por rede: só endereços VERIFICADOS on-chain em 2026-09-07
- * (`cast code` != 0x, `factory.getPool` devolvendo pool com liquidez > 0 e
- * `QuoterV2` cotando 100 da reserva). Rodar:
+ * One contract per network, using only addresses VERIFIED on-chain on 2026-09-07
+ * (`cast code` != 0x, `factory.getPool` returning a pool with liquidity > 0 and
+ * `QuoterV2` quoting 100 units of the reserve). Run:
  *
  *   FOUNDRY_PROFILE=fork forge test --match-contract Fork_eth --fork-url <rpc> -vv
  *
- * Os endereços do Uniswap v3 são os canônicos (mesmo endereço em ETH/POL/OP/ARB),
- * exceto Base, Avalanche, BSC e Robinhood, que têm deploys próprios.
+ * The Uniswap v3 addresses are the canonical ones (same address on ETH/POL/OP/ARB),
+ * except on Base, Avalanche, BSC and Robinhood Chain, which have their own deployments.
  */
 contract Fork_eth is UniV3ForkSuite {
     function setUp() public {
@@ -138,7 +138,7 @@ contract Fork_avax is UniV3ForkSuite {
     }
 }
 
-/// Uniswap v3 na BSC (deploy próprio; o Pancake tem bateria separada em Fork_bsc).
+/// Uniswap v3 on BSC (its own deployment; PancakeSwap has a separate suite in Fork_bsc).
 contract Fork_bsc_uni is UniV3ForkSuite {
     function setUp() public {
         thirdTokens.push(0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82);
@@ -151,7 +151,7 @@ contract Fork_bsc_uni is UniV3ForkSuite {
             "https://bsc-rpc.publicnode.com",
             0x55d398326f99059fF775485246999027B3197955, // USDT (18)
             0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c, // WBNB
-            0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7, // factory() lido do SwapRouter02
+            0xdB1d10011AD0Ff90774D0C6Bb92e5C5c8b4461F7, // factory() read from SwapRouter02
             0xB971eF87ede563556b2ED4b1C0b0019111Dd85d2,
             0x78D78E420Da98ad378D7799bE8f4AF69033EB077,
             0x8894E0a0c962CB723c1976a4421c95949bE2D4E3,
@@ -160,7 +160,7 @@ contract Fork_bsc_uni is UniV3ForkSuite {
     }
 }
 
-/// Robinhood Chain: reserva = USDG (não há USDT líquido), Uniswap v3 próprio.
+/// Robinhood Chain: reserve = USDG (there is no liquid USDT), its own Uniswap v3 deployment.
 contract Fork_robinhood is UniV3ForkSuite {
     function setUp() public {
         // No third-party token candidate here: the reserve -> wrapped -> token test logs a
@@ -176,7 +176,7 @@ contract Fork_robinhood is UniV3ForkSuite {
             0x1f7d7550B1b028f7571E69A784071F0205FD2EfA,
             0xCaf681a66D020601342297493863E78C959E5cb2,
             0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7,
-            address(0), // sem whale conhecido: `deal` resolve
+            address(0), // no known whale: `deal` is enough
             fees
         );
     }

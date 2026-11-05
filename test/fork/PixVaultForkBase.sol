@@ -12,9 +12,10 @@ interface IERC20Meta {
 }
 
 /**
- * Base dos testes em fork: deploya o cofre, configura reserva/operador/alvos,
- * financia (deal → whale) e expõe `buy(...)` que executa e mede. Cada rede
- * tem um contrato `Fork_<key>` com os endereços verificados do levantamento.
+ * Base for the fork tests: deploys the vault, configures reserve/operator/targets,
+ * funds it (deal, falling back to a whale) and exposes `buy(...)`, which executes
+ * and measures. Each network has a `Fork_<key>` contract with the addresses
+ * verified on-chain for it.
  */
 abstract contract PixVaultForkBase is Test {
     VelloraPixVault internal vault;
@@ -25,7 +26,7 @@ abstract contract PixVaultForkBase is Test {
     address internal reserve;
     uint8 internal reserveDecimals;
 
-    /// `fundWhole` em unidades HUMANAS da reserva (ex.: 1_000 = 1.000 USDT).
+    /// `fundWhole` is in WHOLE units of the reserve (e.g. 1_000 = 1,000 USDT).
     function _setUpVault(address reserve_, address[] memory targets, uint256 fundWhole, address whale) internal {
         reserve = reserve_;
         reserveDecimals = IERC20Meta(reserve_).decimals();
@@ -44,8 +45,8 @@ abstract contract PixVaultForkBase is Test {
     }
 
     function _fund(uint256 amount, address whale) internal {
-        // `deal` acha o slot do balance por sondagem; em tokens não-padrão (proxy,
-        // storage exótico) pode falhar — cai no whale.
+        // `deal` finds the balance slot by probing; on non-standard tokens (proxies,
+        // unusual storage) it can fail, so fall back to the whale.
         try this._dealTo(reserve, address(vault), amount) {} catch {}
         if (IERC20(reserve).balanceOf(address(vault)) < amount && whale != address(0)) {
             vm.prank(whale);
@@ -63,7 +64,7 @@ abstract contract PixVaultForkBase is Test {
         return whole * (10 ** reserveDecimals);
     }
 
-    /// Executa uma compra e imprime gas/entrega. Retorna (delivered, spent).
+    /// Executes a purchase and logs gas/delivery. Returns (delivered, spent).
     function buy(
         string memory label,
         address tokenOut,
@@ -117,7 +118,7 @@ abstract contract PixVaultForkBase is Test {
         return amounts[amounts.length - 1];
     }
 
-    /// 3% de folga sobre o quote (tolerância de fork/slippage; FOT fica de fora).
+    /// 3% below the quote (fork/slippage tolerance; fee-on-transfer tokens are not covered).
     function withSlippage(uint256 quoted) internal pure returns (uint256) {
         return (quoted * 97) / 100;
     }

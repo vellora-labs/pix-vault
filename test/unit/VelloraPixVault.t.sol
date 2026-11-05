@@ -47,7 +47,7 @@ contract MockERC20 is IERC20 {
     }
 }
 
-/// DEX de mentira: puxa `amountIn` da reserva do msg.sender e entrega `amountOut` de tokenOut (ou nativo) ao `to`.
+/// Fake DEX: pulls `amountIn` of the reserve from msg.sender and delivers `amountOut` of tokenOut (or native coin) to `to`.
 contract MockDex {
     MockERC20 public immutable reserve;
     MockERC20 public immutable tokenOut;
@@ -70,13 +70,13 @@ contract MockDex {
         require(ok, "native");
     }
 
-    /// Entrega para si mesmo (usuário não recebe nada).
+    /// Delivers to itself (the user receives nothing).
     function swapKeepOutput(uint256 amountIn, uint256 amountOut) external {
         reserve.transferFrom(msg.sender, address(this), amountIn);
         tokenOut.mint(address(this), amountOut);
     }
 
-    /// Tenta reentrar no cofre.
+    /// Tries to re-enter the vault.
     function reenter(VelloraPixVault vault, bytes32 orderId, address to) external {
         VelloraPixVault.Call[] memory calls = new VelloraPixVault.Call[](0);
         vault.executeBuy(orderId, to, address(tokenOut), 1, 0, address(this), calls);
@@ -168,7 +168,7 @@ contract VelloraPixVaultTest is Test {
 
     function test_executeBuy_neverCallsReserveOrSelf() public {
         vm.prank(owner);
-        vault.setAllowedTarget(address(usdt), true); // owner errou: allowlistou a reserva
+        vault.setAllowedTarget(address(usdt), true); // owner mistake: allowlisted the reserve
         VelloraPixVault.Call[] memory calls = new VelloraPixVault.Call[](1);
         calls[0] = VelloraPixVault.Call(address(usdt), abi.encodeCall(IERC20.transfer, (stranger, 1e18)));
         vm.prank(operator);
@@ -190,10 +190,10 @@ contract VelloraPixVaultTest is Test {
 
     function test_executeBuy_rejectsOverspend_andNothingSpent() public {
         vm.startPrank(operator);
-        // DEX puxa 20 mas a ordem só aprovou 10 → o transferFrom do mock falha → CallFailed
+        // the DEX pulls 20 but the order only approved 10 → the mock's transferFrom fails → CallFailed
         vm.expectRevert();
         vault.executeBuy(keccak256("over"), user, address(tkn), 10e18, 0, address(dex), _swapCall(20e18, 20e18));
-        // call vazia: nada gasto
+        // no calls: nothing spent
         VelloraPixVault.Call[] memory none = new VelloraPixVault.Call[](0);
         vm.expectRevert(VelloraPixVault.NothingSpent.selector);
         vault.executeBuy(keccak256("none"), user, address(tkn), 10e18, 0, address(dex), none);
@@ -210,7 +210,7 @@ contract VelloraPixVaultTest is Test {
         vm.expectRevert(abi.encodeWithSelector(VelloraPixVault.AboveDailyCap.selector, 5_001e18, 5_000e18));
         vault.executeBuy(keccak256("d6"), user, address(tkn), 1e18, 0, address(dex), _swapCall(1e18, 1e18));
         vm.stopPrank();
-        // vira o dia UTC → zera
+        // next UTC day → the daily total resets
         vm.warp(block.timestamp + 1 days);
         usdt.mint(address(vault), 1_000e18);
         vm.prank(operator);

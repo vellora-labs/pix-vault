@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Bateria de fork do VelloraPixVault nas 8 redes-alvo.
-# OP e Base passam por anvil (bug do foundry com OP Stack pós-Isthmus:
-# "Missing operator fee scalar for isthmus L1 Block"); --chain-id 1 desliga o op-revm.
+# Fork battery for VelloraPixVault on the 8 target networks.
+# For OP and Base, forge starts on a local anvil fork with --chain-id 1, which turns
+# off op-revm and avoids a Foundry 1.7.1 failure after Isthmus ("Missing operator
+# fee scalar for isthmus L1 Block"); each setUp still forks the network's own RPC.
 set -u
 cd "$(dirname "$0")"
 export FOUNDRY_PROFILE=fork
 LOG=${LOG_DIR:-/tmp/pix-vault-fork}
 mkdir -p "$LOG"
 
-run() { # nome rpc
+run() { # name rpc
   echo "===== $1"
   forge test --match-contract "Fork_$1\$" --fork-url "$2" -vv 2>&1 | tee "$LOG/$1.log" \
     | grep -E "^\[(PASS|FAIL)|Suite result:|^  \["
